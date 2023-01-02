@@ -1,3 +1,7 @@
-import hero/connections, hero/pools
+import hero/connections
+export connections
 
-export connections, pools
+when compileOption("threads"):
+  ## Using the connection pool requires --threads:on
+  import hero/pools
+  export pools

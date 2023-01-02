@@ -15,4 +15,4 @@ jobs:
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - run: nimble test -y
-    - run: nimble test --gc:orc -y
+    - run: nimble test --threads:on --mm:orc -y
