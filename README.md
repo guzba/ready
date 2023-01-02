@@ -6,7 +6,7 @@
 
 [API reference](https://nimdocs.com/guzba/hero)
 
-Hero is a Redis client that is built to work well in a multi-threaded program.
+Hero is a Redis client that is built to work well in a multi-threaded server such as [Mummy](https://github.com/guzba/mummy).
 
 ## Using Hero
 
