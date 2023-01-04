@@ -116,57 +116,58 @@ proc parseReply(reply: string, parsed: var seq[Option[string]]) =
     parsed.add(parseReplyEntry(reply, pos))
 
 proc findReplyEnd(conn: RedisConn, start: int): int {.raises: [RedisError].} =
-  let dataType = conn.recvBuf[start]
-  case dataType:
-  of '+', '-', ':':
-    let simpleEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
-    if simpleEnd > 0:
-      return simpleEnd + 1
-  of '$':
-    let lenEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
-    if lenEnd > 0:
-      var strLen: int
-      try:
-        discard parseInt(conn.recvBuf, strLen, start + 1)
-      except ValueError:
-        # Unrecoverable?
-        raise newException(
-          RedisError,
-          "Error parsing Bulk String length: " &
-          conn.recvBuf[start + 1 ..< lenEnd]
-        )
-      let respEnd =
-        if strLen >= 0:
-          lenEnd + 1 + strLen + 2
-        else:
-          lenEnd + 1
-      if respEnd <= conn.bytesReceived:
-        return respEnd
-  of '*':
-    let numEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
-    if numEnd > 0:
-      var numElements: int
-      try:
-        discard parseInt(conn.recvBuf, numElements, start + 1)
-      except ValueError:
-        # Unrecoverable?
-        raise newException(
-          RedisError,
-          "Error parsing number of elements in array: " &
-          conn.recvBuf[start + 1 ..< numEnd]
-        )
-      var nextElementStart = numEnd + 1
-      for i in 0 ..< numElements:
-        nextElementStart = conn.findReplyEnd(nextElementStart)
-        if nextElementStart == -1:
-          break
-      return nextElementStart
-  else:
-    # Unrecoverable?
-    raise newException(
-      RedisError,
-      "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
-    )
+  if start < conn.recvBuf.len:
+    let dataType = conn.recvBuf[start]
+    case dataType:
+    of '+', '-', ':':
+      let simpleEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      if simpleEnd > 0:
+        return simpleEnd + 1
+    of '$':
+      let lenEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      if lenEnd > 0:
+        var strLen: int
+        try:
+          discard parseInt(conn.recvBuf, strLen, start + 1)
+        except ValueError:
+          # Unrecoverable?
+          raise newException(
+            RedisError,
+            "Error parsing Bulk String length: " &
+            conn.recvBuf[start + 1 ..< lenEnd]
+          )
+        let respEnd =
+          if strLen >= 0:
+            lenEnd + 1 + strLen + 2
+          else:
+            lenEnd + 1
+        if respEnd <= conn.bytesReceived:
+          return respEnd
+    of '*':
+      let numEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      if numEnd > 0:
+        var numElements: int
+        try:
+          discard parseInt(conn.recvBuf, numElements, start + 1)
+        except ValueError:
+          # Unrecoverable?
+          raise newException(
+            RedisError,
+            "Error parsing number of elements in array: " &
+            conn.recvBuf[start + 1 ..< numEnd]
+          )
+        var nextElementStart = numEnd + 1
+        for i in 0 ..< numElements:
+          nextElementStart = conn.findReplyEnd(nextElementStart)
+          if nextElementStart == -1:
+            break
+        return nextElementStart
+    else:
+      # Unrecoverable?
+      raise newException(
+        RedisError,
+        "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
+      )
 
   # We have not received the end of the RESP data yet
   return -1
@@ -195,6 +196,10 @@ proc recv*(conn: RedisConn): RedisReply {.raises: [RedisError].} =
         # Parse after cleaning up the receive buffer in case this raises
         parseReply(reply, result.entries)
         break
+
+    # Expand the buffer if it is full
+    if conn.bytesReceived == conn.recvBuf.len:
+      conn.recvBuf.setLen(conn.recvBuf.len * 2)
 
     # Read more response data
     let bytesReceived = conn.socket.recv(
