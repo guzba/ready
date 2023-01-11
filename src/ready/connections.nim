@@ -73,14 +73,14 @@ proc send*(
   conn: RedisConn,
   command: string,
   args: varargs[string]
-) {.raises: [RedisError].} =
+) {.inline, raises: [RedisError].} =
   conn.send([(command, toSeq(args))])
 
 proc redisParseInt(buf: string, first: int): int =
   try:
     discard parseInt(buf, result, first)
   except ValueError:
-    raise newException(RedisError, "Error parsing number: " & buf[first ..< ^1])
+    raise newException(RedisError, "Error parsing number")
 
 proc findReplyEnd(
   conn: RedisConn, start: int
@@ -123,42 +123,42 @@ proc findReplyEnd(
   # We have not received the end of the RESP data yet
   return -1
 
-proc parseReply(reply: string, pos: var int): RedisReply {.raises: [RedisError].} =
-  let dataType = reply[pos]
+proc parseReply(buf: string, pos: var int): RedisReply {.raises: [RedisError].} =
+  let dataType = buf[pos]
   inc pos
   case dataType:
   of '-':
-    let simpleEnd = reply.find("\r\n", pos)
-    raise newException(RedisError, reply[pos ..< simpleEnd])
+    let simpleEnd = buf.find("\r\n", pos)
+    raise newException(RedisError, buf[pos ..< simpleEnd])
   of '+':
     result = RedisReply(kind: SimpleStringReply)
-    let simpleEnd = reply.find("\r\n", pos)
-    result.simple = reply[pos ..< simpleEnd]
+    let simpleEnd = buf.find("\r\n", pos)
+    result.simple = buf[pos ..< simpleEnd]
     pos = simpleEnd + 2
   of ':':
     result = RedisReply(kind: IntegerReply)
-    let simpleEnd = reply.find("\r\n", pos)
-    result.value = redisParseInt(reply, pos)
+    let simpleEnd = buf.find("\r\n", pos)
+    result.value = redisParseInt(buf, pos)
     pos = simpleEnd + 2
   of '$':
     result = RedisReply(kind: BulkStringReply)
     let
-      lenEnd = reply.find("\r\n", pos)
-      strlen = redisParseInt(reply, pos)
+      lenEnd = buf.find("\r\n", pos)
+      strlen = redisParseInt(buf, pos)
     pos = lenEnd + 2
     if strLen >= 0:
-      result.bulk = some(reply[pos ..< pos + strLen])
+      result.bulk = some(buf[pos ..< pos + strLen])
     else:
       result.bulk = none(string)
     pos += strLen + 2
   of '*':
     result = RedisReply(kind: ArrayReply)
     let
-      numEnd = reply.find("\r\n", pos)
-      numElements = redisParseInt(reply, pos)
+      numEnd = buf.find("\r\n", pos)
+      numElements = redisParseInt(buf, pos)
     pos = numEnd + 2
     for i in 0 ..< numElements:
-      result.elements.add(parseReply(reply, pos))
+      result.elements.add(parseReply(buf, pos))
   else:
     raise newException(
       RedisError,
@@ -174,23 +174,19 @@ proc receive*(
     if conn.bytesReceived > 0:
       let replyLen = conn.findReplyEnd(0)
       if replyLen > 0:
-        # We have the reply, remove it from the receive buffer
-        var reply = newString(replyLen)
-        copyMem(
-          reply[0].addr,
-          conn.recvBuf[0].addr,
-          replyLen
-        )
-        conn.bytesReceived -= replyLen
-        if conn.bytesReceived > 0:
-          copyMem(
-            conn.recvBuf[0].addr,
-            conn.recvBuf[replyLen].addr,
-            conn.bytesReceived
-          )
-
-        var pos = 0
-        result = parseReply(reply, pos)
+        # We have the reply, parse it
+        try:
+          var pos = 0
+          result = parseReply(conn.recvBuf, pos)
+        finally:
+          # Always remove the reply from the receive buffer
+          conn.bytesReceived -= replyLen
+          if conn.bytesReceived > 0:
+            copyMem(
+              conn.recvBuf[0].addr,
+              conn.recvBuf[replyLen].addr,
+              conn.bytesReceived
+            )
         break
 
     # Expand the buffer if it is full
@@ -208,7 +204,7 @@ proc receive*(
     else:
       raise newException(RedisError, osErrorMsg(osLastError()))
 
-proc roundtrip*(
+proc command*(
   conn: RedisConn,
   command: string,
   args: varargs[string]
