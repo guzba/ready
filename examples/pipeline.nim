@@ -1,6 +1,11 @@
 import hero
 
-let redis = newRedisConn()
+## This example demonstrates pipelining mulitple Redis commands before
+## calling receive to get the replies.
+##
+## Remember to call receive for every command you sent~
+
+let redis = newRedisConn() # Defaults to localhost:6379
 
 redis.send("MULTI")
 redis.send("INCR", "mycount")

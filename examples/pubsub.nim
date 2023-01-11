@@ -1,10 +1,15 @@
 import hero, std/os
 
+## This example shows how to do a simple multi-threaded PubSub where
+## a thread is dedicated to receiving incoming messages and the other thread
+## is free to send commands to manage the connection, such as more SUBSCRIBE
+## commands or UNSUBSCRIBE commands.
+
 ## nim c --threads:on --mm:orc -r examples/pubsub.nim
 
-let pubsub = newRedisConn()
+let pubsub = newRedisConn() # Defaults to localhost:6379
 
-proc recvProc() =
+proc receiveProc() =
   try:
     while true:
       let reply = pubsub.receive()
@@ -14,8 +19,8 @@ proc recvProc() =
   except RedisError as e:
     echo e.msg
 
-var recvThread: Thread[void]
-createThread(recvThread, recvProc)
+var receiveThread: Thread[void]
+createThread(receiveThread, receiveProc)
 
 pubsub.send("SUBSCRIBE", "mychannel")
 

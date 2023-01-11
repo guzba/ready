@@ -79,7 +79,7 @@ import hero, std/os
 
 let pubsub = newRedisConn()
 
-proc recvProc() =
+proc receiveProc() =
   try:
     while true:
       let reply = pubsub.receive()
@@ -89,8 +89,8 @@ proc recvProc() =
   except RedisError as e:
     echo e.msg
 
-var recvThread: Thread[void]
-createThread(recvThread, recvProc)
+var receiveThread: Thread[void]
+createThread(receiveThread, receiveProc)
 
 pubsub.send("SUBSCRIBE", "mychannel")
 ```
