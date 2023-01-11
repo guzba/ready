@@ -9,7 +9,7 @@ import ready, std/os
 
 let pubsub = newRedisConn() # Defaults to localhost:6379
 
-proc receiveProc() =
+proc receiveThreadProc() =
   try:
     while true:
       let reply = pubsub.receive()

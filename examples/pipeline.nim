@@ -21,15 +21,11 @@ redis.send("EXEC")
 #  ("EXEC", @[])
 #])
 
-# Match the number of `recv` calls to the number of commands sent
+# Match the number of `receive` calls to the number of commands sent
 
-let
-  reply1 = redis.receive() # OK
-  reply2 = redis.receive() # QUEUED
-  reply3 = redis.receive() # QUEUED
-  reply4 = redis.receive() # 1, OK
+discard redis.receive() # OK
+discard redis.receive() # QUEUED
+discard redis.receive() # QUEUED
+let (num, _) = redis.receive().to((int, string))
 
-echo reply1.to(string)
-echo reply2.to(string)
-echo reply3.to(string)
-echo reply4.to((int, string))
+echo num
