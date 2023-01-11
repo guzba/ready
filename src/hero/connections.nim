@@ -324,3 +324,9 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
       raise newException(RedisError, "Cannot convert non-array reply to " & $t)
   else:
     {.error: "Coverting to " & $t & " not supported.".}
+
+proc `[]`*(reply: RedisReply, index: int): RedisReply =
+  if reply.kind == ArrayReply:
+    reply.elements[index]
+  else:
+    raise newException(RedisError, "Reply is not an array")

@@ -75,12 +75,17 @@ let
 Use [PubSub](https://redis.io/docs/manual/pubsub/) to concurrently receive messages and send connection updates such as SUBSCRIBE or UNSUBSCRIBE.
 
 ```nim
+import hero, std/os
+
 let pubsub = newRedisConn()
 
 proc recvProc() =
   try:
     while true:
-      let msg = pubsub.receive()
+      let reply = pubsub.receive()
+      echo "Event: ", reply[0].to(string)
+      echo "Channel: ", reply[1].to(string)
+      echo "Raw: ", reply
   except RedisError as e:
     echo e.msg
 
