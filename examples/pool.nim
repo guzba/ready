@@ -1,4 +1,4 @@
-import hero
+import ready
 
 ## This example demonstrates creating a pool Redis connections, then using
 ## one of those connections to execute a command before it is returned

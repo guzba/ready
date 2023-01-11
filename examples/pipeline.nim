@@ -1,4 +1,4 @@
-import hero
+import ready
 
 ## This example demonstrates pipelining mulitple Redis commands before
 ## calling receive to get the replies.

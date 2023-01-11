@@ -1,4 +1,4 @@
-import hero, std/os
+import ready, std/os
 
 ## This example shows how to do a simple multi-threaded PubSub where
 ## a thread is dedicated to receiving incoming messages and the other thread

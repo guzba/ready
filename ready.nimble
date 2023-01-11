@@ -1,6 +1,6 @@
 version     = "0.1.0"
 author      = "Ryan Oldenburg"
-description = "A brave little Redis client"
+description = "A redis client that's ready when you are"
 license     = "MIT"
 
 srcDir = "src"

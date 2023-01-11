@@ -1,4 +1,4 @@
-import hero, std/options
+import ready, std/options
 
 ## This example demonstrates opening a Redis connection, sending a command and
 ## then receiving the reply.
