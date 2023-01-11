@@ -4,7 +4,7 @@
 
 [API reference](https://nimdocs.com/guzba/ready)
 
-Ready is a Redis client that is built to work well in a multi-threaded program such as an HTTP server built using [Mummy](https://github.com/guzba/mummy).
+Ready is a Redis client that is built to work well in multi-threaded programs. An great use-case for Ready is in a multi-threaded HTTP server like [Mummy](https://github.com/guzba/mummy).
 
 Check out the [examples/](https://github.com/guzba/ready/tree/master/examples) folder for more sample code using Ready.
 
