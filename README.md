@@ -130,7 +130,7 @@ let (num, _) = redis.receive().to((int, string))
 
 Pipelining as an advanced technique when using Redis that can drastically increase performance when possible.
 
-Important! Remember to match the number of `receive` calls to the number of commands calls.
+Important! Remember to match the number of `receive` calls to the number of commands sent.
 
 ## Publish and subscribe (PubSub)
 
