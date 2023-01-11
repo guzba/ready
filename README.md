@@ -106,3 +106,35 @@ First, where possible, it is more efficient to pipeline many Redis commands. Thi
 Second, you may want to have a separate thread be sending vs receiving. A common use of this is [PubSub](https://redis.io/docs/manual/pubsub/), where one thread is dedicated to receiving messages and the sending thread manages what channels are subscribed to. See [this example](https://github.com/guzba/hero/blob/master/examples/pubsub.nim).
 
 Whenever a `receive` call gets an error reply from Redis a `RedisError` is raised. Remember that `roundrip` calls `receive` internally so you'll know if any errors occurred before you start working with the reply.
+
+## Working with replies
+
+A call to `receive` or `roundtrip` will return a `RedisReply` object. You'll want to convert that into the types to expect. Hero makes that easy by calling `reply.to`.
+
+```nim
+# Basic conversions:
+
+echo reply.to(int)
+echo reply.to(string)
+echo reply.to(Option[string]) # If the reply can be nil
+
+# Convert array replies to seq:
+
+echo reply.to(seq[int])
+echo reply.to(seq[string])
+echo reply.to(seq[Option[string]])
+
+# Convert array replies to tuples:
+
+echo reply.to((int, string))
+echo reply.to((int, Option[string]))
+echo reply.to((string, Option[string], int))
+
+# Mix and match:
+
+echo reply.to((string, Option[string], seq[int]))
+```
+
+A call to `reply.to` for a type Hero does not know how to convert to will fail at compile time.
+
+If Hero is unable to convert the reply from Redis to your requested type, a `RedisError` is raised.
