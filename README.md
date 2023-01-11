@@ -104,3 +104,5 @@ Why use `send` and `receive` separately? Two reasons:
 First, where possible, it is more efficient to pipeline many Redis commands. This is easy to do with Hero, just call `send` multiple times (or call `send` with a seq of commands).
 
 Second, you may want to have a separate thread be sending vs receiving. A common use of this is [PubSub](https://redis.io/docs/manual/pubsub/), where one thread is dedicated to receiving messages and the sending thread manages what channels are subscribed to. See [this example](https://github.com/guzba/hero/blob/master/examples/pubsub.nim).
+
+Whenever a `receive` call gets an error reply from Redis a `RedisError` is raised. Remember that `roundrip` calls `receive` internally so you'll know if any errors occurred before you start working with the reply.
