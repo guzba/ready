@@ -15,7 +15,8 @@ proc close*(pool: RedisPool) =
 proc newRedisPool*(
   size: int,
   port = Port(6379),
-  address = "localhost"
+  address = "localhost",
+  onConnect: proc(conn: RedisConn) = nil
 ): RedisPool =
   ## Creates a new thead-safe pool of Redis connections.
   if size <= 0:
@@ -23,7 +24,10 @@ proc newRedisPool*(
   result.pool = newPool[RedisConn]()
   try:
     for _ in 0 ..< size:
-      result.pool.recycle(newRedisConn(port, address))
+      let conn = newRedisConn(port, address)
+      if onConnect != nil:
+        onConnect(conn)
+      result.pool.recycle(conn)
   except:
     try:
       result.close()
