@@ -18,79 +18,60 @@ block:
   discard redis.receive()
   let values = redis.command("MGET", "key1", "key2", "key3").to(seq[string])
   doAssert values == @["value1", "value2", "value3"]
+  redis.close()
 
-# let pubsub = newRedisConn()
+block:
+  let pool = newRedisPool(1)
+  pool.withConnnection redis:
+    discard redis.command("SET", "mynumber", "0")
+    redis.send("INCR", "mynumber")
+    redis.send("INCR", "mynumber")
+    redis.send("INCR", "mynumber")
+    redis.send("INCR", "mynumber")
+    doAssert redis.receive().to(int) == 1
+    doAssert redis.receive().to(int) == 2
+    doAssert redis.receive().to(int) == 3
+    doAssert redis.receive().to(int) == 4
+  pool.close()
 
-# proc recvProc() =
-#   try:
-#     while true:
-#       let msg = pubsub.recv()
-#   except RedisError as e:
-#     echo e.msg
+block:
+  let pubsub = newRedisConn()
 
-# var recvThread: Thread[void]
-# createThread(recvThread, recvProc)
+  var received: seq[RedisReply]
 
-# pubsub.send("SUBSCRIBE", "mychannel")
+  proc receiveThreadProc() =
+    try:
+      while true:
+        {.gcsafe.}:
+          received.add(pubsub.receive())
+    except RedisError as e:
+      echo e.msg
 
-# sleep(4000)
+  var receiveThread: Thread[void]
+  createThread(receiveThread, receiveThreadProc)
 
-# pubsub.close()
+  pubsub.send("SUBSCRIBE", "mychannel")
 
-# sleep(1000)
+  proc publishThreadProc() =
+    let publisher = newRedisConn()
 
+    for i in 0 ..< 10:
+      discard publisher.command("PUBLISH", "mychannel", $i)
 
-# let pool = newRedisPool(1)
-# pool.withConnnection redis:
-#   # echo redis.roundtrip("MGET", "key", "empty", "doesntexist")
-#   # echo redis.roundtrip("INCR", "key")
-#   # echo redis.roundtrip("HGETALL", "map")
-#   # echo redis.roundtrip("HMGET", "map", "a", "b", "c", "d", "e")
-#   # echo redis.roundtrip("PING")
-#   # redis.send("GET", "key")
-#   # redis.send("GET", "empty")
-#   # echo redis.recv()
-#   # echo redis.recv()
+    publisher.close()
 
-#   # discard redis.roundtrip("SET", "integer", "0")
-#   # echo redis.roundtrip("INCR", "integer").to(int32)
-#   # echo redis.roundtrip("INCR", "integer").to(string)
-#   # echo redis.roundtrip("INCR", "integer").to(Option[string])
+  var publishThread: Thread[void]
+  createThread(publishThread, publishThreadProc)
 
-#   # redis.send("MULTI")
-#   # redis.send("INCR", "integer")
-#   # redis.send("INCR", "integer")
-#   # redis.send("INCR", "integer")
-#   # redis.send("EXEC")
+  joinThread(publishThread)
 
-#   # redis.send([
-#   #   ("MULTI", @[]),
-#   #   ("INCR", @["integer"]),
-#   #   ("INCR", @["integer"]),
-#   #   ("INCR", @["integer"]),
-#   #   ("EXEC", @[]),
-#   # ])
+  sleep(100)
 
-#   # discard redis.receive()
-#   # discard redis.receive()
-#   # discard redis.receive()
-#   # discard redis.receive()
-#   # # echo redis.receive().to(seq[int])
-#   # echo redis.receive().to((int, int, Option[string]))
+  pubsub.close()
 
+  doAssert received[0].to((string, string, int)) == ("subscribe", "mychannel", 1)
+  for i in 0 ..< 10:
+    doAssert received[i + 1].to((string, string, string)) ==
+      ("message", "mychannel", $i)
 
-#   redis.send("MULTI")
-#   # redis.send("LPUSH", "metavars", "foo", "foobar", "hoge")
-#   redis.send("LRANGE", "metavars", "0", "-1")
-#   redis.send("GET", "key")
-#   redis.send("GET", "key")
-#   redis.send("EXEC")
-#   echo redis.receive().to(string)
-#   echo redis.receive().to(string)
-#   # echo redis.receive()
-#   echo redis.receive().to(string)
-#   echo redis.receive().to(string)
-#   echo redis.receive().to((seq[string], string, string))
-#   # echo "len = ", reply.len
-
-# echo "-- EXITING"
+  sleep(1000)
