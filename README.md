@@ -23,7 +23,7 @@ let redis = newRedisConn() # Defaults to localhost:6379
 After opening a connection you can start sending commands. You can send any of Redis's vast set of commands.
 
 ```nim
-import ready
+import ready, std/options
 
 let redis = newRedisConn() # Defaults to localhost:6379
 
@@ -130,7 +130,7 @@ let (num, _) = redis.receive().to((int, string))
 
 Pipelining as an advanced technique when using Redis that can drastically increase performance when possible.
 
-Important! Remember to match the number of calls `receive` to the number of commands calls.
+Important! Remember to match the number of `receive` calls to the number of commands calls.
 
 ## Publish and subscribe (PubSub)
 
