@@ -8,6 +8,8 @@ Ready is a Redis client that is built to work well in multi-threaded programs. A
 
 Check out the [examples/](https://github.com/guzba/ready/tree/master/examples) folder for more sample code using Ready.
 
+⚠️ Ready is brand new so if you notice any unexpected behavior please report it by opening an issue.
+
 ## Using Ready
 
 First you'll need to open a Redis connection. By default Ready connects to
