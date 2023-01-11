@@ -1,5 +1,4 @@
-import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
-    std/options
+import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils, std/options, std/typetraits
 
 when defined(windows):
   import winlean
@@ -23,11 +22,30 @@ type
 
   RedisConn* = ptr RedisConnObj
 
+  RedisReplyKind = enum
+    SimpleStringReply, BulkStringReply, IntegerReply, ArrayReply
+
   RedisReply* = object
-    entries: seq[Option[string]]
+    case kind: RedisReplyKind
+    of SimpleStringReply:
+      simple: string
+    of BulkStringReply:
+      bulk: Option[string]
+    of IntegerReply:
+      value: int
+    of ArrayReply:
+      elements: seq[RedisReply]
 
 proc `$`*(reply: RedisReply): string =
-  $reply.entries
+  case reply.kind:
+  of IntegerReply:
+    result = $reply.value
+  of SimpleStringReply:
+    result = reply.simple
+  of BulkStringReply:
+    result = $reply.bulk
+  of ArrayReply:
+    result = "[" & join(reply.elements, ", ") & "]"
 
 proc close*(conn: RedisConn) {.raises: [], gcsafe.} =
   ## Closes and deallocates the connection.
@@ -58,112 +76,45 @@ proc send*(
 ) {.raises: [RedisError].} =
   conn.send([(command, toSeq(args))])
 
-proc parseReplyEntry(reply: string, pos: var int): Option[string] =
-  let dataType = reply[pos]
-  inc pos
-  case dataType:
-  of '-':
-    let simpleEnd = reply.find('\r', pos, reply.high)
-    raise newException(RedisError, reply[pos ..< simpleEnd])
-  of '+', ':':
-    let simpleEnd = reply.find('\r', pos, reply.high)
-    result = some(reply[pos ..< simpleEnd])
-    pos = simpleEnd + 2
-  of '$':
-    let lenEnd = reply.find('\r', pos, reply.high)
-    var strLen: int
-    try:
-      discard parseInt(reply, strLen, pos)
-      # raise newException(ValueError, "HERE")
-    except ValueError:
-      # Unrecoverable?
-      raise newException(
-        RedisError,
-        "Error parsing Bulk String length: " &
-        reply[pos ..< lenEnd]
-      )
-    pos = lenEnd + 2
-    result =
-      if strLen >= 0:
-        some(reply[pos ..< pos + strLen])
-      else:
-        none(string)
-    pos += strLen + 2
-  else:
-    raise newException(
-      RedisError,
-      "Unexpected RESP entry type " & dataType & " (" & $dataType.uint8 & ")"
-    )
+proc redisParseInt(buf: string, first: int): int =
+  try:
+    discard parseInt(buf, result, first)
+  except ValueError:
+    raise newException(RedisError, "Error parsing number: " & buf[first ..< ^1])
 
-proc parseReply(reply: string, parsed: var seq[Option[string]]) =
-  var pos = 0
-  if reply[pos] == '*':
-    let numEnd = reply.find('\r', 1, reply.high)
-    var numElements: int
-    try:
-      discard parseInt(reply, numElements, 1)
-    except ValueError:
-      # Unrecoverable?
-      raise newException(
-        RedisError,
-        "Error parsing number of elements in array: " &
-        reply[1 ..< numEnd]
-      )
-    pos = numEnd + 2
-    for i in 0 ..< numElements:
-      parsed.add(parseReplyEntry(reply, pos))
-  else:
-    parsed.add(parseReplyEntry(reply, pos))
-
-proc findReplyEnd(conn: RedisConn, start: int): int {.raises: [RedisError].} =
-  if start < conn.recvBuf.len:
+proc findReplyEnd(
+  conn: RedisConn, start: int
+): int {.raises: [RedisError].} =
+  if start < conn.bytesReceived:
     let dataType = conn.recvBuf[start]
     case dataType:
     of '+', '-', ':':
-      let simpleEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      let simpleEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
       if simpleEnd > 0:
-        return simpleEnd + 1
+        return simpleEnd + 2
     of '$':
-      let lenEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      let lenEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
       if lenEnd > 0:
-        var strLen: int
-        try:
-          discard parseInt(conn.recvBuf, strLen, start + 1)
-        except ValueError:
-          # Unrecoverable?
-          raise newException(
-            RedisError,
-            "Error parsing Bulk String length: " &
-            conn.recvBuf[start + 1 ..< lenEnd]
-          )
-        let respEnd =
-          if strLen >= 0:
-            lenEnd + 1 + strLen + 2
-          else:
-            lenEnd + 1
+        let
+          strLen = redisParseInt(conn.recvBuf, start + 1)
+          respEnd =
+            if strLen >= 0:
+              lenEnd + 2 + strLen + 2
+            else:
+              lenEnd + 2
         if respEnd <= conn.bytesReceived:
           return respEnd
     of '*':
-      let numEnd = conn.recvBuf.find('\n', start + 1, conn.bytesReceived - 1)
+      let numEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
       if numEnd > 0:
-        var numElements: int
-        try:
-          discard parseInt(conn.recvBuf, numElements, start + 1)
-        except ValueError:
-          # Unrecoverable?
-          raise newException(
-            RedisError,
-            "Error parsing number of elements in array: " &
-            conn.recvBuf[start + 1 ..< numEnd]
-          )
-        var nextElementStart = numEnd + 1
+        let numElements = redisParseInt(conn.recvBuf, start + 1)
+        var nextElementStart = numEnd + 2
         for i in 0 ..< numElements:
           nextElementStart = conn.findReplyEnd(nextElementStart)
           if nextElementStart == -1:
             break
         return nextElementStart
     else:
-      # Unrecoverable?
       raise newException(
         RedisError,
         "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
@@ -172,7 +123,51 @@ proc findReplyEnd(conn: RedisConn, start: int): int {.raises: [RedisError].} =
   # We have not received the end of the RESP data yet
   return -1
 
-proc recv*(conn: RedisConn): RedisReply {.raises: [RedisError].} =
+proc parseReply(reply: string, pos: var int): RedisReply {.raises: [RedisError].} =
+  let dataType = reply[pos]
+  inc pos
+  case dataType:
+  of '-':
+    let simpleEnd = reply.find("\r\n", pos)
+    raise newException(RedisError, reply[pos ..< simpleEnd])
+  of '+':
+    result = RedisReply(kind: SimpleStringReply)
+    let simpleEnd = reply.find("\r\n", pos)
+    result.simple = reply[pos ..< simpleEnd]
+    pos = simpleEnd + 2
+  of ':':
+    result = RedisReply(kind: IntegerReply)
+    let simpleEnd = reply.find("\r\n", pos)
+    result.value = redisParseInt(reply, pos)
+    pos = simpleEnd + 2
+  of '$':
+    result = RedisReply(kind: BulkStringReply)
+    let
+      lenEnd = reply.find("\r\n", pos)
+      strlen = redisParseInt(reply, pos)
+    pos = lenEnd + 2
+    if strLen >= 0:
+      result.bulk = some(reply[pos ..< pos + strLen])
+    else:
+      result.bulk = none(string)
+    pos += strLen + 2
+  of '*':
+    result = RedisReply(kind: ArrayReply)
+    let
+      numEnd = reply.find("\r\n", pos)
+      numElements = redisParseInt(reply, pos)
+    pos = numEnd + 2
+    for i in 0 ..< numElements:
+      result.elements.add(parseReply(reply, pos))
+  else:
+    raise newException(
+      RedisError,
+      "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
+    )
+
+proc receive*(
+  conn: RedisConn
+): RedisReply {.raises: [RedisError].} =
   ## Receives a single reply from the Redis server.
   while true:
     # Check the receive buffer for the reply
@@ -193,8 +188,9 @@ proc recv*(conn: RedisConn): RedisReply {.raises: [RedisError].} =
             conn.recvBuf[replyLen].addr,
             conn.bytesReceived
           )
-        # Parse after cleaning up the receive buffer in case this raises
-        parseReply(reply, result.entries)
+
+        var pos = 0
+        result = parseReply(reply, pos)
         break
 
     # Expand the buffer if it is full
@@ -212,13 +208,13 @@ proc recv*(conn: RedisConn): RedisReply {.raises: [RedisError].} =
     else:
       raise newException(RedisError, osErrorMsg(osLastError()))
 
-proc sendRecv*(
+proc roundtrip*(
   conn: RedisConn,
   command: string,
   args: varargs[string]
-): RedisReply =
+): RedisReply {.raises: [RedisError]} =
   conn.send([(command, toSeq(args))])
-  conn.recv()
+  conn.receive()
 
 proc newRedisConn*(
   port = Port(6379),
@@ -252,3 +248,77 @@ proc newRedisConn*(
   except OSError as e:
     result.close()
     raise e
+
+proc to*[T](reply: RedisReply, t: typedesc[T]): T =
+  when t is SomeInteger:
+    case reply.kind:
+    of SimpleStringReply:
+      raise newException(RedisError, "Cannot convert string to " & $t)
+    of IntegerReply:
+      cast[T](reply.value)
+    of BulkStringReply:
+      if reply.bulk.isSome:
+        cast[T](redisParseInt(reply.bulk.get(), 0))
+      else:
+        raise newException(RedisError, "Reply is nil")
+    of ArrayReply:
+      raise newException(RedisError, "Cannot convert array to " & $t)
+  elif t is string:
+    case reply.kind:
+    of SimpleStringReply:
+      reply.simple
+    of BulkStringReply:
+      if reply.bulk.isSome:
+        reply.bulk.get()
+      else:
+        raise newException(RedisError, "Reply is nil")
+    of IntegerReply:
+      $reply.value
+    of ArrayReply:
+      raise newException(RedisError, "Cannot convert array to " & $t)
+  elif t is Option[string]:
+    case reply.kind:
+    of SimpleStringReply:
+      some(reply.simple)
+    of BulkStringReply:
+      reply.bulk
+    of IntegerReply:
+      some($reply.value)
+    of ArrayReply:
+      raise newException(RedisError, "Cannot convert array to " & $t)
+  elif t is seq[int]:
+    case reply.kind:
+    of ArrayReply:
+      for element in reply.elements:
+        result.add(element.to(int))
+    else:
+      raise newException(RedisError, "Cannot convert non-array reply to " & $t)
+  elif t is seq[string]:
+    case reply.kind:
+    of ArrayReply:
+      for element in reply.elements:
+        result.add(element.to(string))
+    else:
+      raise newException(RedisError, "Cannot convert non-array reply to " & $t)
+  elif t is tuple:
+    case reply.kind:
+    of ArrayReply:
+      var i: int
+      for name, value in result.fieldPairs:
+        when value is SomeInteger:
+          value = reply.elements[i].to(typeof(value))
+        elif value is string:
+          value = reply.elements[i].to(string)
+        elif value is Option[string]:
+          value = reply.elements[i].to(Option[string])
+        elif value is seq[int]:
+          value = reply.elements[i].to(seq[int])
+        elif value is seq[string]:
+          value = reply.elements[i].to(seq[string])
+        inc i
+      if i != reply.elements.len:
+        raise newException(RedisError, "Reply array len != tuple len")
+    else:
+      raise newException(RedisError, "Cannot convert non-array reply to " & $t)
+  else:
+    {.error: "Coverting to " & $t & " not supported.".}
