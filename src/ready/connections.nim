@@ -39,13 +39,13 @@ type
 proc `$`*(reply: RedisReply): string =
   case reply.kind:
   of IntegerReply:
-    result = $reply.value
+    $reply.value
   of SimpleStringReply:
-    result = reply.simple
+    reply.simple
   of BulkStringReply:
-    result = $reply.bulk
+    $reply.bulk
   of ArrayReply:
-    result = "[" & join(reply.elements, ", ") & "]"
+    "[" & join(reply.elements, ", ") & "]"
 
 proc close*(conn: RedisConn) {.raises: [], gcsafe.} =
   ## Closes and deallocates the connection.
