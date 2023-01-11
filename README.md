@@ -133,6 +133,11 @@ echo reply.to((string, Option[string], int))
 # Mix and match:
 
 echo reply.to((string, Option[string], seq[int]))
+
+# Index access, if you know the reply is an array you can access its elements
+
+echo reply[0].to(string)
+
 ```
 
 A call to `reply.to` for a type Hero does not know how to convert to will fail at compile time.
