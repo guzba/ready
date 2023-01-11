@@ -2,8 +2,6 @@
 
 `nimble install ready`
 
-![Github Actions](https://github.com/guzba/ready/workflows/Github%20Actions/badge.svg)
-
 [API reference](https://nimdocs.com/guzba/ready)
 
 Ready is a Redis client that is built to work well in a multi-threaded program such as an HTTP server built using [Mummy](https://github.com/guzba/mummy).
