@@ -94,3 +94,13 @@ createThread(recvThread, recvProc)
 
 pubsub.send("SUBSCRIBE", "mychannel")
 ```
+
+## Pro Tips
+
+You can use Hero in two ways, either by calling `send` and `receive` or by calling `roundtrip`. Calling `roundtrip` is the equivalent of calling `send` and then calling `receive` immediately.
+
+Why use `send` and `receive` separately? Two reasons:
+
+First, where possible, it is more efficient to pipeline many Redis commands. This is easy to do with Hero, just call `send` multiple times (or call `send` with a seq of commands).
+
+Second, you may want to have a separate thread be sending vs receiving. A common use of this is [PubSub](https://redis.io/docs/manual/pubsub/), where one thread is dedicated to receiving messages and the sending thread manages what channels are subscribed to. See [this example](https://github.com/guzba/hero/blob/master/examples/pubsub.nim).
