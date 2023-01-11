@@ -6,6 +6,19 @@ block:
   doAssert redis.command("GET", "foo").to(string) == "bar"
   redis.close()
 
+block:
+  let redis = newRedisConn()
+  redis.send([
+    ("SET", @["key1", "value1"]),
+    ("SET", @["key2", "value2"]),
+    ("SET", @["key3", "value3"])
+  ])
+  discard redis.receive()
+  discard redis.receive()
+  discard redis.receive()
+  let values = redis.command("MGET", "key1", "key2", "key3").to(seq[string])
+  doAssert values == @["value1", "value2", "value3"]
+
 # let pubsub = newRedisConn()
 
 # proc recvProc() =
