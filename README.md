@@ -8,6 +8,8 @@
 
 Hero is a Redis client that is built to work well in a multi-threaded server such as [Mummy](https://github.com/guzba/mummy).
 
+Check out the [examples/](https://github.com/guzba/hero/tree/master/examples) folder for more sample code using Hero.
+
 ## Using Hero
 
 Hero supports both individual Redis connections:
@@ -27,7 +29,7 @@ let redisPool = newRedisPool(3) # Defaults to localhost:6379
 
 redisPool.withConnection conn:
     # `conn` is automatically recycled back into the pool after this block
-    let reply = conn.sendRecv("PING")
+    let reply = conn.roundtrip("PING")
 ```
 
 Send any of Redis's vast set of commands:
@@ -37,7 +39,7 @@ import hero
 
 let redis = newRedisConn()
 
-let reply = redis.sendRecv("HSET", "mykey", "myfield", "myvalue")
+let reply = redis.roundtrip("HSET", "mykey", "myfield", "myvalue")
 ```
 
 Easily pipeline commands and transactions:
@@ -64,10 +66,10 @@ redis.send("EXEC")
 # Match the number of `recv` calls to the number of commands sent
 
 let
-  reply1 = redis.recv() # OK
-  reply2 = redis.recv() # QUEUED
-  reply3 = redis.recv() # QUEUED
-  reply4 = redis.recv() # 4, OK
+  reply1 = redis.receive() # OK
+  reply2 = redis.receive() # QUEUED
+  reply3 = redis.receive() # QUEUED
+  reply4 = redis.receive() # 1, OK
 ```
 
 Use [PubSub](https://redis.io/docs/manual/pubsub/) to concurrently receive messages and send connection updates such as SUBSCRIBE or UNSUBSCRIBE.
@@ -78,7 +80,7 @@ let pubsub = newRedisConn()
 proc recvProc() =
   try:
     while true:
-      let msg = pubsub.recv()
+      let msg = pubsub.receive()
   except RedisError as e:
     echo e.msg
 

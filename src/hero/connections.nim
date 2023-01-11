@@ -305,6 +305,8 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
     of ArrayReply:
       var i: int
       for name, value in result.fieldPairs:
+        if i == reply.elements.len:
+          raise newException(RedisError, "Reply array len < tuple len")
         when value is SomeInteger:
           value = reply.elements[i].to(typeof(value))
         elif value is string:
@@ -317,7 +319,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
           value = reply.elements[i].to(seq[string])
         inc i
       if i != reply.elements.len:
-        raise newException(RedisError, "Reply array len != tuple len")
+        raise newException(RedisError, "Reply array len > tuple len")
     else:
       raise newException(RedisError, "Cannot convert non-array reply to " & $t)
   else:
