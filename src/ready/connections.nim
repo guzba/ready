@@ -1,4 +1,5 @@
-import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils, std/options, std/typetraits
+import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
+    std/options, std/typetraits, std/atomics
 
 when defined(windows):
   import winlean
@@ -19,6 +20,7 @@ type
     socket: SocketHandle
     recvBuf: string
     bytesReceived, recvPos: int
+    poisoned: Atomic[bool]
 
   RedisConn* = ptr RedisConnObj
 
@@ -58,10 +60,18 @@ proc close*(conn: RedisConn) {.raises: [], gcsafe.} =
   `=destroy`(conn[])
   deallocShared(conn)
 
+template raisePoisonedConnError() =
+  raise newException(RedisError, "Redis connection is in a broken state")
+
 proc send*(
   conn: RedisConn,
   commands: openarray[(string, seq[string])]
 ) {.raises: [RedisError].} =
+  ## Sends commands to the Redis server.
+
+  if conn.poisoned.load(moRelaxed):
+    raisePoisonedConnError()
+
   var msg: string
   for (command, args) in commands:
     msg.add "*" & $(1 + args.len) & "\r\n"
@@ -77,137 +87,116 @@ proc send*(
   command: string,
   args: varargs[string]
 ) {.inline, raises: [RedisError].} =
+  ## Sends a command to the Redis server.
   conn.send([(command, toSeq(args))])
 
-proc redisParseInt(buf: string, first: int): int =
-  try:
-    discard parseInt(buf, result, first)
-  except ValueError:
-    raise newException(RedisError, "Error parsing number")
+proc recvBytes(conn: RedisConn) {.raises: [RedisError].} =
+  # Expand the buffer if it is full
+  if conn.bytesReceived == conn.recvBuf.len:
+    conn.recvBuf.setLen(conn.recvBuf.len * 2)
 
-proc findReplyEnd(
-  conn: RedisConn, start: int
-): int {.raises: [RedisError].} =
-  if start < conn.bytesReceived:
-    let dataType = conn.recvBuf[start]
-    case dataType:
-    of '+', '-', ':':
-      let simpleEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
-      if simpleEnd > 0:
-        return simpleEnd + 2
-    of '$':
-      let lenEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
-      if lenEnd > 0:
-        let
-          strLen = redisParseInt(conn.recvBuf, start + 1)
-          respEnd =
-            if strLen >= 0:
-              lenEnd + 2 + strLen + 2
-            else:
-              lenEnd + 2
-        if respEnd <= conn.bytesReceived:
-          return respEnd
-    of '*':
-      let numEnd = conn.recvBuf.find("\r\n", start + 1, conn.bytesReceived - 1)
-      if numEnd > 0:
-        let numElements = redisParseInt(conn.recvBuf, start + 1)
-        var nextElementStart = numEnd + 2
-        for i in 0 ..< numElements:
-          nextElementStart = conn.findReplyEnd(nextElementStart)
-          if nextElementStart == -1:
-            break
-        return nextElementStart
-    else:
-      raise newException(
-        RedisError,
-        "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
-      )
-
-  # We have not received the end of the RESP data yet
-  return -1
-
-proc parseReply(buf: string, pos: var int): RedisReply {.raises: [RedisError].} =
-  let dataType = buf[pos]
-  inc pos
-  case dataType:
-  of '-':
-    let simpleEnd = buf.find("\r\n", pos)
-    raise newException(RedisError, buf[pos ..< simpleEnd])
-  of '+':
-    result = RedisReply(kind: SimpleStringReply)
-    let simpleEnd = buf.find("\r\n", pos)
-    result.simple = buf[pos ..< simpleEnd]
-    pos = simpleEnd + 2
-  of ':':
-    result = RedisReply(kind: IntegerReply)
-    let simpleEnd = buf.find("\r\n", pos)
-    result.value = redisParseInt(buf, pos)
-    pos = simpleEnd + 2
-  of '$':
-    result = RedisReply(kind: BulkStringReply)
-    let
-      lenEnd = buf.find("\r\n", pos)
-      strlen = redisParseInt(buf, pos)
-    pos = lenEnd + 2
-    if strLen >= 0:
-      result.bulk = some(buf[pos ..< pos + strLen])
-    else:
-      result.bulk = none(string)
-    pos += strLen + 2
-  of '*':
-    result = RedisReply(kind: ArrayReply)
-    let
-      numEnd = buf.find("\r\n", pos)
-      numElements = redisParseInt(buf, pos)
-    pos = numEnd + 2
-    for i in 0 ..< numElements:
-      result.elements.add(parseReply(buf, pos))
+  # Read more response data
+  let bytesReceived = conn.socket.recv(
+    conn.recvBuf[conn.bytesReceived].addr,
+    (conn.recvBuf.len - conn.bytesReceived).cint,
+    0
+  )
+  if bytesReceived > 0:
+    conn.bytesReceived += bytesReceived
   else:
-    raise newException(
-      RedisError,
-      "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
-    )
+    raise newException(RedisError, osErrorMsg(osLastError()))
+
+proc redisParseInt(conn: RedisConn): int =
+  try:
+    discard parseInt(conn.recvBuf, result, conn.recvPos)
+  except ValueError:
+    conn.poisoned.store(true, moRelaxed)
+    raise newException(RedisError, "Error parsing number")
 
 proc receive*(
   conn: RedisConn
 ): RedisReply {.raises: [RedisError].} =
   ## Receives a single reply from the Redis server.
-  while true:
-    # Check the receive buffer for the reply
-    if conn.bytesReceived > 0:
-      let replyEnd = conn.findReplyEnd(conn.recvPos)
-      if replyEnd > 0:
-        # We have the reply, parse it
-        try:
-          var pos = conn.recvPos
-          result = parseReply(conn.recvBuf, pos)
-        finally:
-          conn.recvPos = replyEnd
-          if conn.bytesReceived == conn.recvPos:
-            conn.bytesReceived = 0
-            conn.recvPos = 0
+
+  if conn.poisoned.load(moRelaxed):
+    raisePoisonedConnError()
+
+  if conn.recvPos == conn.bytesReceived:
+    # If we haven't received any response data yet do an initial recv
+    conn.recvBytes()
+
+  let dataType = conn.recvBuf[conn.recvPos]
+  inc conn.recvPos
+  case dataType:
+  of '-':
+    while true:
+      let simpleEnd = conn.recvBuf.find("\r\n", conn.recvPos)
+      if simpleEnd > 0:
+        raise newException(RedisError, conn.recvBuf[conn.recvPos ..< simpleEnd])
+      conn.recvBytes()
+  of '+':
+    result = RedisReply(kind: SimpleStringReply)
+    while true:
+      let simpleEnd = conn.recvBuf.find("\r\n", conn.recvPos)
+      if simpleEnd > 0:
+        result.simple = conn.recvBuf[conn.recvPos ..< simpleEnd]
+        conn.recvPos = simpleEnd + 2
         break
-
-    # Expand the buffer if it is full
-    if conn.bytesReceived == conn.recvBuf.len:
-      conn.recvBuf.setLen(conn.recvBuf.len * 2)
-
-    # Read more response data
-    let bytesReceived = conn.socket.recv(
-      conn.recvBuf[conn.bytesReceived].addr,
-      (conn.recvBuf.len - conn.bytesReceived).cint,
-      0
+      conn.recvBytes()
+  of ':':
+    result = RedisReply(kind: IntegerReply)
+    while true:
+      let simpleEnd = conn.recvBuf.find("\r\n", conn.recvPos)
+      if simpleEnd > 0:
+        result.value = redisParseInt(conn)
+        conn.recvPos = simpleEnd + 2
+        break
+      conn.recvBytes()
+  of '$':
+    result = RedisReply(kind: BulkStringReply)
+    while true:
+      let lenEnd = conn.recvBuf.find("\r\n", conn.recvPos)
+      if lenEnd > 0:
+        let strlen = redisParseInt(conn)
+        if conn.bytesReceived >= conn.recvPos + strlen + 2:
+          conn.recvPos = lenEnd + 2
+          if strLen >= 0:
+            result.bulk =
+              some(conn.recvBuf[conn.recvPos ..< conn.recvPos + strLen])
+          else:
+            result.bulk = none(string)
+          conn.recvPos += strLen + 2
+          break
+      conn.recvBytes()
+  of '*':
+    result = RedisReply(kind: ArrayReply)
+    while true:
+      let numEnd = conn.recvBuf.find("\r\n", conn.recvPos)
+      if numEnd > 0:
+        let numElements = redisParseInt(conn)
+        conn.recvPos = numEnd + 2
+        for i in 0 ..< numElements:
+          result.elements.add(conn.receive())
+        break
+      conn.recvBytes()
+  else:
+    conn.poisoned.store(true, moRelaxed)
+    raise newException(
+      RedisError,
+      "Unexpected RESP data type " & dataType & " (" & $dataType.uint8 & ")"
     )
-    if bytesReceived > 0:
-      conn.bytesReceived += bytesReceived
-    else:
-      raise newException(RedisError, osErrorMsg(osLastError()))
+
+  # If we've read to the end of the recv buffer, reset
+  if conn.recvPos > 0 and conn.bytesReceived == conn.recvPos:
+    conn.bytesReceived = 0
+    conn.recvPos = 0
 
 proc command*(
   conn: RedisConn,
   command: string,
   args: varargs[string]
 ): RedisReply {.raises: [RedisError]} =
+  ## Sends a command to the Redis server and receives the reply.
   conn.send([(command, toSeq(args))])
   conn.receive()
 
@@ -253,7 +242,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
       cast[T](reply.value)
     of BulkStringReply:
       if reply.bulk.isSome:
-        cast[T](redisParseInt(reply.bulk.get(), 0))
+        cast[T](parseInt(reply.bulk.get()))
       else:
         raise newException(RedisError, "Reply is nil")
     of ArrayReply:
