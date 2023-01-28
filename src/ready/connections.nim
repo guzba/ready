@@ -157,15 +157,15 @@ proc receive*(
     while true:
       let lenEnd = conn.recvBuf.find("\r\n", conn.recvPos)
       if lenEnd > 0:
-        let strlen = redisParseInt(conn)
-        if conn.bytesReceived >= conn.recvPos + strlen + 2:
+        let strLen = redisParseInt(conn)
+        if strLen >= 0:
+          if conn.bytesReceived >= lenEnd + 2 + strLen + 2:
+            result.bulk = some(conn.recvBuf[lenEnd + 2 ..< lenEnd + 2 + strLen])
+            conn.recvPos = lenEnd + 2 + strLen + 2
+            break
+        else:
           conn.recvPos = lenEnd + 2
-          if strLen >= 0:
-            result.bulk =
-              some(conn.recvBuf[conn.recvPos ..< conn.recvPos + strLen])
-          else:
-            result.bulk = none(string)
-          conn.recvPos += strLen + 2
+          result.bulk = none(string)
           break
       conn.recvBytes()
   of '*':

@@ -85,3 +85,13 @@ template withConnnection*(pool: RedisPool, conn, body) =
       body
     finally:
       pool.recycle(conn)
+
+proc command*(
+  pool: RedisPool,
+  command: string,
+  args: varargs[string]
+): RedisReply =
+  ## Borrows a Redis connection from the pool, sends a command to the
+  ## server and receives the reply.
+  pool.withConnnection conn:
+    result = conn.command(command, args)
