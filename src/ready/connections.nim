@@ -18,7 +18,7 @@ type
   RedisConnObj = object
     socket: SocketHandle
     recvBuf: string
-    bytesReceived: int
+    bytesReceived, recvPos: int
 
   RedisConn* = ptr RedisConnObj
 
@@ -175,21 +175,17 @@ proc receive*(
   while true:
     # Check the receive buffer for the reply
     if conn.bytesReceived > 0:
-      let replyLen = conn.findReplyEnd(0)
-      if replyLen > 0:
+      let replyEnd = conn.findReplyEnd(conn.recvPos)
+      if replyEnd > 0:
         # We have the reply, parse it
         try:
-          var pos = 0
+          var pos = conn.recvPos
           result = parseReply(conn.recvBuf, pos)
         finally:
-          # Always remove the reply from the receive buffer
-          conn.bytesReceived -= replyLen
-          if conn.bytesReceived > 0:
-            copyMem(
-              conn.recvBuf[0].addr,
-              conn.recvBuf[replyLen].addr,
-              conn.bytesReceived
-            )
+          conn.recvPos = replyEnd
+          if conn.bytesReceived == conn.recvPos:
+            conn.bytesReceived = 0
+            conn.recvPos = 0
         break
 
     # Expand the buffer if it is full

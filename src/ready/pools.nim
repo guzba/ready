@@ -61,23 +61,22 @@ proc newRedisPool*(
     raise getCurrentException()
 
 proc borrow*(pool: RedisPool): RedisConn {.gcsafe.} =
-  var retries = 1
-  while true:
-    result = pool.pool.borrow()
-    if pool.onBorrow == nil:
-      break
+  result = pool.pool.borrow()
+  if pool.onBorrow != nil:
     try:
       var lastReturned: float
       withLock pool.lastReturnedLock:
         lastReturned = pool.lastReturned[result]
       pool.onBorrow(result, lastReturned)
-      break
     except:
+      # Close this connection and open a new one
       result.close()
-      pool.recycle(pool.openNewConnection())
-      if retries == 0:
-        raise getCurrentException()
-      dec retries
+      result = pool.openNewConnection()
+      let lastReturned = epochTime()
+      withLock pool.lastReturnedLock:
+        pool.lastReturned[result] = lastReturned
+      if pool.onBorrow != nil:
+        pool.onBorrow(result, lastReturned)
 
 template withConnnection*(pool: RedisPool, conn, body) =
   block:
