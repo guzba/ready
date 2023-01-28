@@ -21,7 +21,14 @@ block:
   redis.close()
 
 block:
-  let pool = newRedisPool(1)
+  proc onConnect(conn: RedisConn) =
+    echo "onConnect"
+
+  proc onBorrow(conn: RedisConn, lastReturned: float) =
+    echo "onBorrow"
+    discard conn.command("PING")
+
+  let pool = newRedisPool(1, onConnect = onConnect, onBorrow = onBorrow)
   pool.withConnnection redis:
     discard redis.command("SET", "mynumber", "0")
     redis.send("INCR", "mynumber")

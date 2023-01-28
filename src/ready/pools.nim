@@ -1,7 +1,16 @@
-import connections, std/sequtils, waterpark
+import connections, std/locks, std/sequtils, std/tables, std/times, waterpark
 
-type RedisPool* = object
-  pool: Pool[RedisConn]
+type
+  RedisPoolObj = object
+    port: Port
+    address: string
+    pool: Pool[RedisConn]
+    lastReturnedLock: Lock
+    lastReturned: Table[RedisConn, float]
+    onConnect: proc(conn: RedisConn) {.gcsafe.}
+    onBorrow: proc(conn: RedisConn, lastReturned: float) {.gcsafe.}
+
+  RedisPool* = ptr RedisPoolObj
 
 proc close*(pool: RedisPool) =
   ## Closes the database connections in the pool then deallocates the pool.
@@ -11,23 +20,39 @@ proc close*(pool: RedisPool) =
     entry.close()
     pool.pool.delete(entry)
   pool.pool.close()
+  `=destroy`(pool[])
+  deallocShared(pool)
+
+proc openNewConnection(pool: RedisPool): RedisConn =
+  result = newRedisConn(pool.port, pool.address)
+  if pool.onConnect != nil:
+    pool.onConnect(result)
+
+proc recycle*(pool: RedisPool, conn: RedisConn) {.raises: [], gcsafe.} =
+  withLock pool.lastReturnedLock:
+    pool.lastReturned[conn] = epochTime()
+  pool.pool.recycle(conn)
 
 proc newRedisPool*(
   size: int,
   port = Port(6379),
   address = "localhost",
-  onConnect: proc(conn: RedisConn) = nil
+  onConnect: proc(conn: RedisConn) {.gcsafe.} = nil,
+  onBorrow: proc(conn: RedisConn, lastReturned: float) {.gcsafe.} = nil
 ): RedisPool =
   ## Creates a new thead-safe pool of Redis connections.
   if size <= 0:
     raise newException(CatchableError, "Invalid pool size")
+  result = cast[RedisPool](allocShared0(sizeof(RedisPoolObj)))
+  result.port = port
+  result.address = address
+  initLock(result.lastReturnedLock)
   result.pool = newPool[RedisConn]()
+  result.onConnect = onConnect
+  result.onBorrow = onBorrow
   try:
     for _ in 0 ..< size:
-      let conn = newRedisConn(port, address)
-      if onConnect != nil:
-        onConnect(conn)
-      result.pool.recycle(conn)
+      result.recycle(result.openNewConnection())
   except:
     try:
       result.close()
@@ -35,11 +60,24 @@ proc newRedisPool*(
       discard
     raise getCurrentException()
 
-proc borrow*(pool: RedisPool): RedisConn {.inline, raises: [], gcsafe.} =
-  pool.pool.borrow()
-
-proc recycle*(pool: RedisPool, conn: RedisConn) {.inline, raises: [], gcsafe.} =
-  pool.pool.recycle(conn)
+proc borrow*(pool: RedisPool): RedisConn {.gcsafe.} =
+  var retries = 1
+  while true:
+    result = pool.pool.borrow()
+    if pool.onBorrow == nil:
+      break
+    try:
+      var lastReturned: float
+      withLock pool.lastReturnedLock:
+        lastReturned = pool.lastReturned[result]
+      pool.onBorrow(result, lastReturned)
+      break
+    except:
+      result.close()
+      pool.recycle(pool.openNewConnection())
+      if retries == 0:
+        raise getCurrentException()
+      dec retries
 
 template withConnnection*(pool: RedisPool, conn, body) =
   block:

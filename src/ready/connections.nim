@@ -36,6 +36,9 @@ type
     of ArrayReply:
       elements: seq[RedisReply]
 
+proc `$`*(conn: RedisConn): string =
+  "RedisConn " & $cast[uint](conn)
+
 proc `$`*(reply: RedisReply): string =
   case reply.kind:
   of IntegerReply:
