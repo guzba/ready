@@ -2,8 +2,8 @@ import connections, std/locks, std/sequtils, std/tables, std/times, waterpark
 
 type
   RedisPoolObj = object
-    port: Port
     address: string
+    port: Port
     pool: Pool[RedisConn]
     lastReturnedLock: Lock
     lastReturned: Table[RedisConn, float]
@@ -24,7 +24,7 @@ proc close*(pool: RedisPool) =
   deallocShared(pool)
 
 proc openNewConnection(pool: RedisPool): RedisConn =
-  result = newRedisConn(pool.port, pool.address)
+  result = newRedisConn(pool.address, pool.port)
   if pool.onConnect != nil:
     pool.onConnect(result)
 
@@ -35,8 +35,8 @@ proc recycle*(pool: RedisPool, conn: RedisConn) {.raises: [], gcsafe.} =
 
 proc newRedisPool*(
   size: int,
-  port = Port(6379),
   address = "localhost",
+  port = Port(6379),
   onConnect: proc(conn: RedisConn) {.gcsafe.} = nil,
   onBorrow: proc(conn: RedisConn, lastReturned: float) {.gcsafe.} = nil
 ): RedisPool =

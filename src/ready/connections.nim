@@ -201,8 +201,8 @@ proc command*(
   conn.receive()
 
 proc newRedisConn*(
-  port = Port(6379),
-  address = "localhost"
+  address = "localhost",
+  port = Port(6379)
 ): RedisConn {.raises: [OSError].} =
   result = cast[RedisConn](allocShared0(sizeof(RedisConnObj)))
   result.recvBuf.setLen(initialRecvBufLen)
