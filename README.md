@@ -12,9 +12,7 @@ Check out the [examples/](https://github.com/guzba/ready/tree/master/examples) f
 
 ## Using Ready
 
-First you'll need to open a Redis connection. By default Ready connects to
-the default Redis server. You can easily specify a different port and address
-in `newRedisConn` when needed.
+First you'll need to open a Redis connection. By default Ready connects to the default Redis server at localhost:6379. You can easily specify a different address and port in `newRedisConn` when needed.
 
 ```nim
 import ready
@@ -48,7 +46,7 @@ Here we are using `MGET` to request multiple keys in one command. Since we expec
 
 ## Working with replies
 
-A call to `command` or `receive` will return a `RedisReply` object. You'll want to convert that into the types you expect. Ready makes that easy by calling `to`.
+A call to `command` or `receive` will return a `RedisReply` object. You'll want to convert that into the types you expect. Ready makes that easy by providing the `to` proc.
 
 ```nim
 # Basic conversions:
@@ -166,6 +164,8 @@ Note that using PubSub with Ready requires threads.
 You can use Ready in two ways, either by calling `command` or by calling `send` and `receive`. Calling `command` is the equivalent of calling `send` and then calling `receive` immediately.
 
 Whenever a `command` or `receive` call gets an error reply from Redis a `RedisError` is raised. This means discarding the reply in `discard redis.command("PING")` is perfectly ok. If the reply was an error an exception would have been raised.
+
+Remember to call `close` if you no longer need a Redis connection. The connections are not garbage collected.
 
 ## Why use `send` and `receive` separately? Two reasons:
 
