@@ -20,7 +20,7 @@ proc receiveThreadProc() =
     echo e.msg
 
 var receiveThread: Thread[void]
-createThread(receiveThread, receiveProc)
+createThread(receiveThread, receiveThreadProc)
 
 pubsub.send("SUBSCRIBE", "mychannel")
 
