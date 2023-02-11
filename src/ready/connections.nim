@@ -88,7 +88,20 @@ proc send*(
   args: varargs[string]
 ) {.inline, raises: [RedisError].} =
   ## Sends a command to the Redis server.
-  conn.send([(command, toSeq(args))])
+
+  # conn.send([(command, toSeq(args))])
+
+  if conn.poisoned.load(moRelaxed):
+    raisePoisonedConnError()
+
+  var msg: string
+  msg.add "*" & $(1 + args.len) & "\r\n"
+  msg.add "$" & $command.len & "\r\n" & command & "\r\n"
+  for arg in args:
+    msg.add "$" & $arg.len & "\r\n" & arg & "\r\n"
+
+  if conn.socket.send(msg[0].addr, msg.len.cint, 0) < 0:
+    raise newException(RedisError, osErrorMsg(osLastError()))
 
 proc recvBytes(conn: RedisConn) {.raises: [RedisError].} =
   # Expand the buffer if it is full
@@ -197,7 +210,7 @@ proc command*(
   args: varargs[string]
 ): RedisReply {.raises: [RedisError]} =
   ## Sends a command to the Redis server and receives the reply.
-  conn.send([(command, toSeq(args))])
+  conn.send(command, toSeq(args))
   conn.receive()
 
 proc newRedisConn*(
