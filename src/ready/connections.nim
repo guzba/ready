@@ -1,10 +1,12 @@
 import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
     std/options, std/typetraits, std/atomics
 
-when defined(windows):
-  from winlean import shutdown
-elif defined(posix):
-  from posix import shutdown
+when not defined(nimdoc):
+  # nimdoc produces bizarre and annoying errors
+  when defined(windows):
+    from winlean import shutdown
+  elif defined(posix):
+    from posix import shutdown
 
 export Port
 
@@ -55,7 +57,8 @@ proc `$`*(reply: RedisReply): string =
 proc close*(conn: RedisConn) {.raises: [], gcsafe.} =
   ## Closes and deallocates the connection.
   if conn.socket.int > 0:
-    discard conn.socket.shutdown(when defined(windows): 2 else: SHUT_RDWR)
+    when not defined(nimdoc):
+      discard conn.socket.shutdown(when defined(windows): 2 else: SHUT_RDWR)
     conn.socket.close()
   `=destroy`(conn[])
   deallocShared(conn)
