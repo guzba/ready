@@ -2,9 +2,9 @@ import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
     std/options, std/typetraits, std/atomics
 
 when defined(windows):
-  import winlean
+  from winlean import shutdown
 elif defined(posix):
-  import posix
+  from posix import shutdown
 
 export Port
 
