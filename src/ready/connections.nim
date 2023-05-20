@@ -258,7 +258,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
       cast[T](reply.value)
     of BulkStringReply:
       if reply.bulk.isSome:
-        cast[T](parseInt(reply.bulk.get()))
+        cast[T](parseInt(reply.bulk.get))
       else:
         raise newException(RedisError, "Reply is nil")
     of ArrayReply:
@@ -269,7 +269,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
       reply.simple
     of BulkStringReply:
       if reply.bulk.isSome:
-        reply.bulk.get()
+        reply.bulk.get
       else:
         raise newException(RedisError, "Reply is nil")
     of IntegerReply:
@@ -284,6 +284,19 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
       reply.bulk
     of IntegerReply:
       some($reply.value)
+    of ArrayReply:
+      raise newException(RedisError, "Cannot convert array to " & $t)
+  elif t is Option[int]:
+    case reply.kind:
+    of SimpleStringReply:
+      raise newException(RedisError, "Cannot convert string to " & $t)
+    of BulkStringReply:
+      if reply.bulk.isSome:
+        some(parseInt(reply.bulk.get))
+      else:
+        none(int)
+    of IntegerReply:
+      some(reply.value)
     of ArrayReply:
       raise newException(RedisError, "Cannot convert array to " & $t)
   elif t is seq[int]:
