@@ -4,9 +4,9 @@ import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
 when not defined(nimdoc):
   # nimdoc produces bizarre and annoying errors
   when defined(windows):
-    from winlean import shutdown
+    import winlean
   elif defined(posix):
-    from posix import shutdown
+    import posix
 
 export Port
 
