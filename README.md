@@ -88,6 +88,18 @@ import ready
 
 let redisPool = newRedisPool(3) # Defaults to localhost:6379
 
+# This autoamtically removes a connection from the pool, runs the command
+# and then returns it back to the pool
+redisPool.command("PING")
+```
+
+Or, if you want to run more than one command with the same connection:
+
+```nim
+import ready
+
+let redisPool = newRedisPool(3) # Defaults to localhost:6379
+
 redisPool.withConnection conn:
     # `conn` is automatically recycled back into the pool after this block
     discard conn.command("PING")
@@ -163,7 +175,7 @@ You can use Ready in two ways, either by calling `command` or by calling `send` 
 
 Whenever a `command` or `receive` call gets an error reply from Redis a `RedisError` is raised. This means discarding the reply in `discard redis.command("PING")` is perfectly ok. If the reply was an error an exception would have been raised.
 
-Remember to call `close` if you no longer need a Redis connection. The connections are not garbage collected.
+If you open a short-lived Redis connection, remember to call `close` when you no longer need it. The connections are not garbage collected. (For HTTP servers this is unlikely, see [#1](https://github.com/guzba/ready/issues/1#issuecomment-1586255510) for a brief discussion.)
 
 ## Why use `send` and `receive` separately? Two reasons:
 
