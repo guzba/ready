@@ -7,5 +7,5 @@ import ready
 ## nim c --threads:on --mm:orc -r examples/pool.nim
 
 let pool = newRedisPool(2) # Defaults to localhost:6379
-pool.withConnnection redis:
-  echo redis.command("INCR", "number").to(int)
+
+echo pool.command("INCR", "number").to(int)
