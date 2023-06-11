@@ -2,7 +2,7 @@ import mummy, mummy/routers, ready
 
 ## This example shows how to use Ready and Mummy for an HTTP server.
 ##
-## We set up a simple server use Redis to maintain a simple request counter.
+## We set up a simple server and use Redis to maintain a simple request counter.
 
 let pool = newRedisPool(2) # Defaults to localhost:6379
 
