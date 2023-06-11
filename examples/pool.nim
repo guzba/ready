@@ -8,4 +8,4 @@ import ready
 
 let pool = newRedisPool(2) # Defaults to localhost:6379
 pool.withConnnection redis:
-  echo redis.roundtrip("INCR", "number").to(int)
+  echo redis.command("INCR", "number").to(int)

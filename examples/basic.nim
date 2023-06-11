@@ -5,6 +5,6 @@ import ready, std/options
 
 let redis = newRedisConn() # Defaults to localhost:6379
 
-let reply = redis.roundtrip("GET", "mykey").to(Option[string])
+let reply = redis.command("GET", "mykey").to(Option[string])
 
 echo reply
