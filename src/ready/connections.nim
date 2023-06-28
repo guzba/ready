@@ -148,7 +148,9 @@ proc receive*(
     while true:
       let simpleEnd = conn.recvBuf.find("\r\n", conn.recvPos)
       if simpleEnd > 0:
-        raise newException(RedisError, conn.recvBuf[conn.recvPos ..< simpleEnd])
+        var msg = conn.recvBuf[conn.recvPos ..< simpleEnd]
+        conn.recvPos = simpleEnd + 2
+        raise newException(RedisError, move msg)
       conn.recvBytes()
   of '+':
     result = RedisReply(kind: SimpleStringReply)

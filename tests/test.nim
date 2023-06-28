@@ -8,6 +8,13 @@ block:
 
 block:
   let redis = newRedisConn()
+  doAssertRaises RedisError:
+    discard redis.command("STE", "foo", "bar")
+  discard redis.command("SET", "foo", "bar")
+  redis.close()
+
+block:
+  let redis = newRedisConn()
   redis.send([
     ("SET", @["key1", "value1"]),
     ("SET", @["key2", "value2"]),
