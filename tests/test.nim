@@ -15,6 +15,13 @@ block:
 
 block:
   let redis = newRedisConn()
+  doAssert not redis.command("GET", "does_not_exist").to(Option[string]).isSome
+  discard redis.command("SET", "empty", "")
+  doAssert redis.command("GET", "empty").to(string) == ""
+  redis.close()
+
+block:
+  let redis = newRedisConn()
   redis.send([
     ("SET", @["key1", "value1"]),
     ("SET", @["key2", "value2"]),

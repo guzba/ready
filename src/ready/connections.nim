@@ -178,7 +178,9 @@ proc receive*(
         let strLen = redisParseInt(conn)
         if strLen >= 0:
           if conn.bytesReceived >= lenEnd + 2 + strLen + 2:
-            result.bulk = some(conn.recvBuf[lenEnd + 2 ..< lenEnd + 2 + strLen])
+            var bulk = newString(strLen)
+            copyMem(bulk.cstring, conn.recvBuf[lenEnd + 2].addr, strLen)
+            result.bulk = some(move bulk)
             conn.recvPos = lenEnd + 2 + strLen + 2
             break
         else:
