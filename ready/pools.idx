@@ -1,7 +1,8 @@
-RedisPool	ready/pools.html#RedisPool	pools: RedisPool	
-close	ready/pools.html#close,RedisPool	pools: close(pool: RedisPool)	
-recycle	ready/pools.html#recycle,RedisPool,RedisConn	pools: recycle(pool: RedisPool; conn: RedisConn)	
-newRedisPool	ready/pools.html#newRedisPool,int,string,proc(RedisConn),proc(RedisConn,float)	pools: newRedisPool(size: int; address = &quot;localhost&quot;; port = Port(6379);\n             onConnect: proc (conn: RedisConn) {.gcsafe.} = nil; onBorrow: proc (\n    conn: RedisConn; lastReturned: float) {.gcsafe.} = nil): RedisPool	
-borrow	ready/pools.html#borrow,RedisPool	pools: borrow(pool: RedisPool): RedisConn	
-withConnnection	ready/pools.html#withConnnection.t,RedisPool,,	pools: withConnnection(pool: RedisPool; conn, body)	
-command	ready/pools.html#command,RedisPool,string,varargs[string]	pools: command(pool: RedisPool; command: string; args: varargs[string]): RedisReply	
+nimTitle	pools	ready/pools.html	module src/ready/pools		0
+nim	RedisPool	ready/pools.html#RedisPool	type RedisPool		13
+nim	close	ready/pools.html#close,RedisPool	proc close(pool: RedisPool)		15
+nim	recycle	ready/pools.html#recycle,RedisPool,RedisConn	proc recycle(pool: RedisPool; conn: RedisConn)		31
+nim	newRedisPool	ready/pools.html#newRedisPool,int,string,proc(RedisConn),proc(RedisConn,float)	proc newRedisPool(size: int; address = "localhost"; port = Port(6379);\n             onConnect: proc (conn: RedisConn) {.gcsafe.} = nil; onBorrow: proc (\n    conn: RedisConn; lastReturned: float) {.gcsafe.} = nil): RedisPool		36
+nim	borrow	ready/pools.html#borrow,RedisPool	proc borrow(pool: RedisPool): RedisConn		63
+nim	withConnnection	ready/pools.html#withConnnection.t,RedisPool,,	template withConnnection(pool: RedisPool; conn, body)		81
+nim	command	ready/pools.html#command,RedisPool,string,varargs[string]	proc command(pool: RedisPool; command: string; args: varargs[string]): RedisReply		89
