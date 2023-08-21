@@ -1,4 +1,4 @@
-import std/nativesockets, std/sequtils, std/os, std/strutils, std/parseutils,
+import std/nativesockets, std/os, std/strutils, std/parseutils,
     std/options, std/typetraits, std/atomics
 
 when not defined(nimdoc):
@@ -217,7 +217,7 @@ proc command*(
   args: varargs[string]
 ): RedisReply {.raises: [RedisError]} =
   ## Sends a command to the Redis server and receives the reply.
-  conn.send(command, toSeq(args))
+  conn.send(command, args)
   conn.receive()
 
 proc newRedisConn*(
