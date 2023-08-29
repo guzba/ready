@@ -15,7 +15,7 @@ type
   RedisPool* = ptr RedisPoolObj
 
 proc close*(pool: RedisPool) =
-  ## Closes the database connections in the pool then deallocates the pool.
+  ## Closes the Redis connections in the pool then deallocates the pool.
   ## All connections should be returned to the pool before it is closed.
   withLock pool.lock:
     for conn in pool.conns:
@@ -29,6 +29,7 @@ proc openNewConnection(pool: RedisPool): RedisConn =
     pool.onConnect(result)
 
 proc recycle*(pool: RedisPool, conn: RedisConn) {.raises: [], gcsafe.} =
+  ## Returns a Redis connection to the pool.
   withLock pool.lock:
     pool.conns.add(conn)
     pool.r.shuffle(pool.conns)
@@ -64,6 +65,10 @@ proc newRedisPool*(
     raise getCurrentException()
 
 proc borrow*(pool: RedisPool): RedisConn {.gcsafe.} =
+  ## Removes a Redis connection from the pool. This call blocks until it can take
+  ## a connection. Remember to add the connection back to the pool with recycle
+  ## when you're finished with it.
+
   acquire(pool.lock)
   while pool.conns.len == 0:
     wait(pool.cond, pool.lock)
