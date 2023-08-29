@@ -6,4 +6,3 @@ license     = "MIT"
 srcDir = "src"
 
 requires "nim >= 1.6.10"
-requires "waterpark >= 0.1.4"
