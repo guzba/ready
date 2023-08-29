@@ -145,9 +145,9 @@
     <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">RootEffect</span><span class="Other">,</span> <span class="Identifier">TimeEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
-    
-    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L66" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L66" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    Removes a Redis connection from the pool. This call blocks until it can take a connection. Remember to add the connection back to the pool with recycle when you're finished with it.
+    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L67" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L67" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -158,7 +158,7 @@
   <dt><pre><span class="Keyword">proc</span> <a href="#close%2CRedisPool"><span class="Identifier">close</span></a><span class="Other">(</span><span class="Identifier">pool</span><span class="Other">:</span> <a href="pools.html#RedisPool"><span class="Identifier">RedisPool</span></a><span class="Other">)</span> {.<span><span class="Other pragmadots">...</span></span><span class="pragmawrap"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
-    Closes the database connections in the pool then deallocates the pool. All connections should be returned to the pool before it is closed.
+    Closes the Redis connections in the pool then deallocates the pool. All connections should be returned to the pool before it is closed.
     <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L17" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
 <a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L17" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
@@ -174,8 +174,8 @@
   <dd>
     
     Borrows a Redis connection from the pool, sends a command to the server and receives the reply.
-    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L96" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L96" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L101" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L101" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -191,8 +191,8 @@
   <dd>
     
     Creates a new thead-safe pool of Redis connections.
-    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L38" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L38" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L39" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L39" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -204,7 +204,7 @@
     <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">TimeEffect</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">forbids</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span>.}</pre></dt>
   <dd>
     
-    
+    Returns a Redis connection to the pool.
     <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L31" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
 <a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L31" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
@@ -224,8 +224,8 @@
   <dd>
     
     
-    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L88" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
-<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L88" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
+    <a href="https://github.com/guzba/ready/tree/master/src/ready/pools.nim#L93" class="link-seesrc" target="_blank">Source</a>&nbsp;&nbsp;
+<a href="https://github.com/guzba/ready/edit/devel/src/ready/pools.nim#L93" class="link-seesrc" target="_blank" >Edit</a>&nbsp;&nbsp;
 
   </dd>
 </div>
@@ -241,7 +241,7 @@
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br>
-        <small style="color: var(--hint);">Made with Nim. Generated: 2023-08-29 18:31:38 UTC</small>
+        <small style="color: var(--hint);">Made with Nim. Generated: 2023-08-29 18:47:29 UTC</small>
       </div>
     </div>
   </div>
