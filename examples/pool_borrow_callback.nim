@@ -16,5 +16,5 @@ proc onBorrow(conn: RedisConn, lastReturned: float) =
 
 let pool = newRedisPool(2, onBorrow = onBorrow)
 
-pool.withConnnection conn:
+pool.withConnection conn:
   echo "Borrowed ", conn

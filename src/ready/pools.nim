@@ -90,7 +90,7 @@ proc borrow*(pool: RedisPool): RedisConn {.gcsafe.} =
       if pool.onBorrow != nil:
         pool.onBorrow(result, epochTime())
 
-template withConnnection*(pool: RedisPool, conn, body) =
+template withConnection*(pool: RedisPool, conn, body) =
   block:
     let conn = pool.borrow()
     try:
@@ -105,5 +105,5 @@ proc command*(
 ): RedisReply =
   ## Borrows a Redis connection from the pool, sends a command to the
   ## server and receives the reply.
-  pool.withConnnection conn:
+  pool.withConnection conn:
     result = conn.command(command, args)
