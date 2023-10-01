@@ -43,7 +43,7 @@ block:
     discard conn.command("PING")
 
   let pool = newRedisPool(1, onConnect = onConnect, onBorrow = onBorrow)
-  pool.withConnnection redis:
+  pool.withConnection redis:
     discard redis.command("SET", "mynumber", "0")
     redis.send("INCR", "mynumber")
     redis.send("INCR", "mynumber")
