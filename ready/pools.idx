@@ -4,5 +4,5 @@ nim	close	ready/pools.html#close,RedisPool	proc close(pool: RedisPool)		17
 nim	recycle	ready/pools.html#recycle,RedisPool,RedisConn	proc recycle(pool: RedisPool; conn: RedisConn)		31
 nim	newRedisPool	ready/pools.html#newRedisPool,int,string,proc(RedisConn),proc(RedisConn,float)	proc newRedisPool(size: int; address = "localhost"; port = Port(6379);\n             onConnect: proc (conn: RedisConn) {.gcsafe.} = nil; onBorrow: proc (\n    conn: RedisConn; lastReturned: float) {.gcsafe.} = nil): RedisPool		39
 nim	borrow	ready/pools.html#borrow,RedisPool	proc borrow(pool: RedisPool): RedisConn		67
-nim	withConnnection	ready/pools.html#withConnnection.t,RedisPool,,	template withConnnection(pool: RedisPool; conn, body)		93
+nim	withConnection	ready/pools.html#withConnection.t,RedisPool,,	template withConnection(pool: RedisPool; conn, body)		93
 nim	command	ready/pools.html#command,RedisPool,string,varargs[string]	proc command(pool: RedisPool; command: string; args: varargs[string]): RedisReply		101
