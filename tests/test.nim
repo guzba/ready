@@ -35,6 +35,34 @@ block:
   redis.close()
 
 block:
+  let redis = newRedisConn()
+  redis.send([
+    ("SET", @["key1", "value1"]),
+    ("SET", @["key2", "value2"]),
+    ("SET", @["key3", "value3"])
+  ])
+  discard redis.receive()
+  discard redis.receive()
+  discard redis.receive()
+  let values = redis.command("MGET", "key3", "key4").to(seq[Option[string]])
+  doAssert values == @[some("value3"), none(string)]
+  redis.close()
+
+block:
+  let redis = newRedisConn()
+  redis.send([
+    ("SET", @["count1", "1"]),
+    ("SET", @["count2", "2"]),
+    ("SET", @["count3", "3"])
+  ])
+  discard redis.receive()
+  discard redis.receive()
+  discard redis.receive()
+  let values = redis.command("MGET", "count2", "count4").to(seq[Option[int]])
+  doAssert values == @[some(2), none(int)]
+  redis.close()
+
+block:
   proc onConnect(conn: RedisConn) =
     echo "onConnect"
 
