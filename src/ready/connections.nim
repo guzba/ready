@@ -317,6 +317,39 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
         result.add(element.to(string))
     else:
       raise newException(RedisError, "Cannot convert non-array reply to " & $t)
+  elif t is seq[Option[string]]:
+    case reply.kind:
+    of ArrayReply:
+      for element in reply.elements:
+        case element.kind:
+        of SimpleStringReply:
+          result.add(some(element.simple))
+        of BulkStringReply:
+          result.add(element.bulk)
+        of IntegerReply:
+          result.add(some($element.value))
+        of ArrayReply:
+          raise newException(RedisError, "Cannot convert array to " & $t)
+    else:
+      raise newException(RedisError, "Convert error of " & $t)
+  elif t is seq[Option[int]]:
+    case reply.kind:
+    of ArrayReply:
+      for element in reply.elements:
+        case element.kind:
+        of SimpleStringReply:
+          raise newException(RedisError, "Cannot convert string to " & $t)
+        of BulkStringReply:
+          if element.bulk.isSome:
+            result.add(some(parseInt(element.bulk.get)))
+          else:
+            result.add(none(int))
+        of IntegerReply:
+          result.add(some(element.value))
+        of ArrayReply:
+          raise newException(RedisError, "Cannot convert array to " & $t)
+    else:
+      raise newException(RedisError, "Convert error of " & $t)
   elif t is tuple:
     case reply.kind:
     of ArrayReply:
