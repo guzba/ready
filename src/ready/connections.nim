@@ -331,7 +331,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
         of ArrayReply:
           raise newException(RedisError, "Cannot convert array to " & $t)
     else:
-      raise newException(RedisError, "Convert error of " & $t)
+      raise newException(RedisError, "Cannot convert non-array reply to " & $t)
   elif t is seq[Option[int]]:
     case reply.kind:
     of ArrayReply:
@@ -349,7 +349,7 @@ proc to*[T](reply: RedisReply, t: typedesc[T]): T =
         of ArrayReply:
           raise newException(RedisError, "Cannot convert array to " & $t)
     else:
-      raise newException(RedisError, "Convert error of " & $t)
+      raise newException(RedisError, "Cannot convert non-array reply to " & $t)
   elif t is tuple:
     case reply.kind:
     of ArrayReply:
