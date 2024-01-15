@@ -6,11 +6,11 @@ nim	`$`	ready/connections.html#$,RedisConn	proc `$`(conn: RedisConn): string		43
 nim	`$`	ready/connections.html#$,RedisReply	proc `$`(reply: RedisReply): string		46
 nim	close	ready/connections.html#close,RedisConn	proc close(conn: RedisConn)		57
 nim	send	ready/connections.html#send,RedisConn,openArray[]	proc send(conn: RedisConn; commands: openArray[(string, seq[string])])		69
-nim	send	ready/connections.html#send,RedisConn,string,varargs[string]	proc send(conn: RedisConn; command: string; args: varargs[string])		88
-nim	receive	ready/connections.html#receive,RedisConn	proc receive(conn: RedisConn): RedisReply		132
-nim	command	ready/connections.html#command,RedisConn,string,varargs[string]	proc command(conn: RedisConn; command: string; args: varargs[string]): RedisReply		214
-nim	newRedisConn	ready/connections.html#newRedisConn,string	proc newRedisConn(address = "localhost"; port = Port(6379)): RedisConn		223
-nim	to	ready/connections.html#to,RedisReply,typedesc[T]	proc to[T](reply: RedisReply; t: typedesc[T]): T		256
-nim	`[]`	ready/connections.html#[],RedisReply,int	proc `[]`(reply: RedisReply; index: int): RedisReply		378
+nim	send	ready/connections.html#send,RedisConn,string,varargs[string]	proc send(conn: RedisConn; command: string; args: varargs[string])		92
+nim	receive	ready/connections.html#receive,RedisConn	proc receive(conn: RedisConn): RedisReply		140
+nim	command	ready/connections.html#command,RedisConn,string,varargs[string]	proc command(conn: RedisConn; command: string; args: varargs[string]): RedisReply		222
+nim	newRedisConn	ready/connections.html#newRedisConn,string	proc newRedisConn(address = "localhost"; port = Port(6379)): RedisConn		231
+nim	to	ready/connections.html#to,RedisReply,typedesc[T]	proc to[T](reply: RedisReply; t: typedesc[T]): T		264
+nim	`[]`	ready/connections.html#[],RedisReply,int	proc `[]`(reply: RedisReply; index: int): RedisReply		386
 nimgrp	$	ready/connections.html#$-procs-all	proc		43
 nimgrp	send	ready/connections.html#send-procs-all	proc		69
