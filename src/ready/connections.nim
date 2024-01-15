@@ -82,7 +82,11 @@ proc send*(
     for arg in args:
       msg.add "$" & $arg.len & "\r\n" & arg & "\r\n"
 
-  if conn.socket.send(msg[0].addr, msg.len.cint, MSG_NOSIGNAL) < 0:
+  if conn.socket.send(
+    msg[0].addr,
+    msg.len.cint,
+    when defined(MSG_NOSIGNAL): MSG_NOSIGNAL else: 0
+  ) < 0:
     raise newException(RedisError, osErrorMsg(osLastError()))
 
 proc send*(
@@ -103,7 +107,11 @@ proc send*(
   for arg in args:
     msg.add "$" & $arg.len & "\r\n" & arg & "\r\n"
 
-  if conn.socket.send(msg[0].addr, msg.len.cint, MSG_NOSIGNAL) < 0:
+  if conn.socket.send(
+    msg[0].addr,
+    msg.len.cint,
+    when defined(MSG_NOSIGNAL): MSG_NOSIGNAL else: 0
+  ) < 0:
     raise newException(RedisError, osErrorMsg(osLastError()))
 
 proc recvBytes(conn: RedisConn) {.raises: [RedisError].} =

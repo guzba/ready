@@ -1,4 +1,4 @@
-version     = "0.1.8"
+version     = "0.1.9"
 author      = "Ryan Oldenburg"
 description = "A Redis client for multi-threaded servers"
 license     = "MIT"
