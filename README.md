@@ -88,7 +88,7 @@ import ready
 
 let redisPool = newRedisPool(3) # Defaults to localhost:6379
 
-# This autoamtically removes a connection from the pool, runs the command
+# This automatically removes a connection from the pool, runs the command
 # and then returns it back to the pool
 redisPool.command("PING")
 ```
