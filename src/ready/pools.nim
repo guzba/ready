@@ -69,17 +69,16 @@ proc borrow*(pool: RedisPool): RedisConn {.gcsafe.} =
   ## a connection. Remember to add the connection back to the pool with recycle
   ## when you're finished with it.
 
+  var lastReturned: float
   acquire(pool.lock)
   while pool.conns.len == 0:
     wait(pool.cond, pool.lock)
   result = pool.conns.pop()
+  lastReturned = pool.lastReturned.getOrDefault(result, 0)
   release(pool.lock)
 
   if pool.onBorrow != nil:
     try:
-      var lastReturned: float
-      withLock pool.lock:
-        lastReturned = pool.lastReturned[result]
       pool.onBorrow(result, lastReturned)
     except:
       # Close this connection and open a new one
