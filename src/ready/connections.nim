@@ -52,7 +52,7 @@ func `$`*(reply: RedisReply): string =
   of BulkStringReply:
     $reply.bulk
   of ArrayReply:
-    "[" & join(reply.elements, ", ") & "]"
+    '[' & join(reply.elements, ", ") & ']'
 
 proc close*(conn: RedisConn) {.raises: [], gcsafe.} =
   ## Closes and deallocates the connection.
@@ -77,10 +77,10 @@ proc send*(
 
   var msg: string
   for (command, args) in commands:
-    msg.add "*" & $(1 + args.len) & "\r\n"
-    msg.add "$" & $command.len & "\r\n" & command & "\r\n"
+    msg.add '*' & $(1 + args.len) & "\r\n"
+    msg.add '$' & $command.len & "\r\n" & command & "\r\n"
     for arg in args:
-      msg.add "$" & $arg.len & "\r\n" & arg & "\r\n"
+      msg.add '$' & $arg.len & "\r\n" & arg & "\r\n"
 
   if conn.socket.send(
     msg[0].addr,
@@ -102,10 +102,10 @@ proc send*(
     raisePoisonedConnError()
 
   var msg: string
-  msg.add "*" & $(1 + args.len) & "\r\n"
-  msg.add "$" & $command.len & "\r\n" & command & "\r\n"
+  msg.add '*' & $(1 + args.len) & "\r\n"
+  msg.add '$' & $command.len & "\r\n" & command & "\r\n"
   for arg in args:
-    msg.add "$" & $arg.len & "\r\n" & arg & "\r\n"
+    msg.add '$' & $arg.len & "\r\n" & arg & "\r\n"
 
   if conn.socket.send(
     msg[0].addr,
